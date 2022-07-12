@@ -1,4 +1,4 @@
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2, bigIntToBytes } from "algosdk";
 import { Account as nearAccount } from "near-api-js";
@@ -6,7 +6,7 @@ import axios from "axios";
 import { ethers } from "ethers";
 import { fromUint8Array } from "js-base64";
 import { redeemOnTerra } from ".";
-import { TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
+import { getClaim, TERRA_REDEEMED_CHECK_WALLET_ADDRESS } from "..";
 import {
   BITS_PER_KEY,
   calcLogicSigAccount,
@@ -15,7 +15,7 @@ import {
 } from "../algorand";
 import { getSignedVAAHash } from "../bridge";
 import { Bridge__factory } from "../ethers-contracts";
-import { importCoreWasm } from "../solana/wasm";
+import { parseVaa, SignedVaa } from "../vaa/wormhole";
 import { safeBigIntToNumber } from "../utils/bigint";
 
 export async function getIsTransferCompletedEth(
@@ -48,10 +48,12 @@ export async function getIsTransferCompletedTerra(
     TERRA_REDEEMED_CHECK_WALLET_ADDRESS
   );
   try {
+    const sequenceNumber = account.getSequenceNumber();
+    console.log("check me", "getSequenceNumber()", sequenceNumber);
     await client.tx.estimateFee(
       [
         {
-          sequenceNumber: account.getSequenceNumber(),
+          sequenceNumber,
           publicKey: account.getPublicKey(),
         },
       ],
@@ -64,6 +66,12 @@ export async function getIsTransferCompletedTerra(
     );
   } catch (e: any) {
     // redeemed if the VAA was already executed
+    // TODO WASM: this fails once in a while?
+    console.log(
+      "check me",
+      e.response.data.message,
+      e.response.data.message.includes("VaaAlreadyExecuted")
+    );
     return e.response.data.message.includes("VaaAlreadyExecuted");
   }
   return false;
@@ -94,17 +102,18 @@ export async function getIsTransferCompletedTerra2(
 }
 
 export async function getIsTransferCompletedSolana(
-  tokenBridgeAddress: string,
-  signedVAA: Uint8Array,
+  tokenBridgeAddress: PublicKeyInitData,
+  signedVAA: SignedVaa,
   connection: Connection
 ): Promise<boolean> {
-  const { claim_address } = await importCoreWasm();
-  const claimAddress = await claim_address(tokenBridgeAddress, signedVAA);
-  const claimInfo = await connection.getAccountInfo(
-    new PublicKey(claimAddress),
-    "confirmed"
-  );
-  return !!claimInfo;
+  const parsed = parseVaa(signedVAA);
+  return getClaim(
+    connection,
+    tokenBridgeAddress,
+    parsed.emitterAddress,
+    parsed.emitterChain,
+    parsed.sequence
+  ).catch((e) => false);
 }
 
 // Algorand
