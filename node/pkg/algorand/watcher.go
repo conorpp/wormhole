@@ -95,7 +95,7 @@ func lookAtTxn(e *Watcher, t types.SignedTxnInBlock, b types.Block, logger *zap.
 		}
 
 		var ed = it.EvalDelta
-		if len(ed.Logs) == 0 {
+		if len(ed.Logs) != 1 {
 			continue
 		}
 
