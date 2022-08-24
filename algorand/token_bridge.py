@@ -501,7 +501,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
 
             MagicAssert(Or(action.load() == Int(1), action.load() == Int(3))),
 
-            MagicAssert(Extract(Txn.application_args[1], off.load() + Int(1), Int(24)) == Extract(zb.load(), Int(0), Int(24))),
+            MagicAssert(BitLen(Extract(Txn.application_args[1], off.load() + Int(1), Int(24))) == Int(0)),
             Amount.store(        Btoi(Extract(Txn.application_args[1], off.load() + Int(25), Int(8)))),  # uint256
 
             Origin.store(             Extract(Txn.application_args[1], off.load() + Int(33), Int(32))),
@@ -524,7 +524,7 @@ def approve_token_bridge(seed_amt: int, tmpl_sig: TmplSig, devMode: bool):
                     Destination.store(getAppAddress(aid.load())),
                     Fee.store(Int(0))
                 ]), Seq([
-                    MagicAssert(Extract(Txn.application_args[1], off.load() + Int(101),Int(24)) == Extract(zb.load(), Int(0), Int(24))),
+                    MagicAssert(BitLen(Extract(Txn.application_args[1], off.load() + Int(101),Int(24))) == Int(0)),
                     Fee.store(Btoi(Extract(Txn.application_args[1], off.load() + Int(125),Int(8)))),  # uint256
                     MagicAssert(Fee.load() <= Amount.load()),
 
