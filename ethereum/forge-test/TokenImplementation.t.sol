@@ -138,7 +138,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
         permit(allower, spender, amount, deadline, v, r, s);
 
         // try again... you shall not pass
-        // TODO: change "testFail" to "test" and change to vm.expectRevert("ERC20Permit: invalid signature")
+        // NOTE: using "testFail" instead of "test" because
+        // vm.expectRevert("ERC20Permit: invalid signature") does not work
         permit(allower, spender, amount, deadline, v, r, s);
     }
 
@@ -202,7 +203,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(sk, message);
 
         // you shall not pass!
-        // TODO: change "testFail" to "test" and change to vm.expectRevert("ERC20Permit: invalid signature")
+        // NOTE: using "testFail" instead of "test" because
+        // vm.expectRevert("ERC20Permit: invalid signature") does not work
         permit(allower, spender, amount, deadline, v, r, s);
     }
 

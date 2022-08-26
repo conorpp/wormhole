@@ -36,16 +36,18 @@ contract TokenImplementation is TokenState, Context {
         _state.nativeContract = nativeContract_;
 
         // EIP712 for domain separator
-        _version = "1";
-        _hashedTokenChain = keccak256(abi.encodePacked(_state.chainId));
-        _hashedNativeContract = keccak256(abi.encodePacked(_state.nativeContract));
-        _hashedVersion = keccak256(bytes(_version));
-        _typeHash = keccak256(
+        _state.version = "1";
+        _state.hashedTokenChain = keccak256(abi.encodePacked(_state.chainId));
+        _state.hashedNativeContract = keccak256(abi.encodePacked(_state.nativeContract));
+        _state.hashedVersion = keccak256(bytes(_state.version));
+        _state.typeHash = keccak256(
             "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
         );
-        _cachedChainId = block.chainid;
-        _cachedDomainSeparator = _buildNativeDomainSeparator(_typeHash, _hashedTokenChain, _hashedNativeContract, _hashedVersion);
-        _cachedThis = address(this);
+        _state.cachedChainId = block.chainid;
+        _state.cachedDomainSeparator = _buildNativeDomainSeparator(
+            _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
+        );
+        _state.cachedThis = address(this);
     }
 
     function name() public view returns (string memory) {
@@ -192,10 +194,12 @@ contract TokenImplementation is TokenState, Context {
      * @dev Returns the domain separator for the current chain.
      */
     function _domainSeparatorV4() internal view returns (bytes32) {
-        if (address(this) == _cachedThis && block.chainid == _cachedChainId) {
-            return _cachedDomainSeparator;
+        if (address(this) == _state.cachedThis && block.chainid == _state.cachedChainId) {
+            return _state.cachedDomainSeparator;
         } else {
-            return _buildNativeDomainSeparator(_typeHash, _hashedTokenChain, _hashedNativeContract, _hashedVersion);
+            return _buildNativeDomainSeparator(
+                _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
+            );
         }
     }
 
@@ -241,7 +245,13 @@ contract TokenImplementation is TokenState, Context {
     ) public {
         require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");
 
-        bytes32 structHash = keccak256(abi.encode(_PERMIT_TYPEHASH, owner_, spender_, value_, _useNonce(owner_), deadline_));
+        // solhint-disable-next-line var-name-mixedcase
+        bytes32 _PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+        bytes32 structHash = keccak256(
+            abi.encode(_PERMIT_TYPEHASH, owner_, spender_, value_, _useNonce(owner_), deadline_)
+        );
 
         bytes32 message = _hashTypedDataV4(structHash);
 
