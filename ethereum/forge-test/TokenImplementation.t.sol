@@ -6,8 +6,6 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../contracts/bridge/token/TokenImplementation.sol";
 import "forge-std/Test.sol";
 
-import {console} from "forge-std/console.sol";
-
 contract TestTokenImplementation is TokenImplementation, Test {
     struct InitiateParameters {
         string name;
@@ -20,6 +18,10 @@ contract TestTokenImplementation is TokenImplementation, Test {
     }
 
     function testPermit(uint256 amount, address spender) public {
+        // spender will never be zero address
+        vm.assume(spender != address(0));
+
+        // initialize TokenImplementation
         InitiateParameters memory init;
         init.name = "Valuable Token";
         init.symbol = "VALU";
@@ -69,7 +71,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         // get allowance before calling permit
         uint256 allowanceBefore = allowance(allower, spender);
 
-        vm.assume(spender != address(0));
+        // set allowance with permit
         permit(allower, spender, amount, deadline, v, r, s);
         uint256 allowanceAfter = allowance(allower, spender);
 
@@ -82,6 +84,10 @@ contract TestTokenImplementation is TokenImplementation, Test {
     function testFailPermitWithSameSignature(uint256 amount, address spender)
         public
     {
+        // spender will never be zero address
+        vm.assume(spender != address(0));
+
+        // initialize TokenImplementation
         InitiateParameters memory init;
         init.name = "Valuable Token";
         init.symbol = "VALU";
@@ -128,16 +134,21 @@ contract TestTokenImplementation is TokenImplementation, Test {
         bytes32 message = ECDSA.toTypedDataHash(DOMAIN_SEPARATOR(), structHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(sk, message);
 
-        vm.assume(spender != address(0));
+        // set allowance with permit
         permit(allower, spender, amount, deadline, v, r, s);
 
         // try again... you shall not pass
+        // TODO: change "testFail" to "test" and change to vm.expectRevert("ERC20Permit: invalid signature")
         permit(allower, spender, amount, deadline, v, r, s);
     }
 
     function testFailPermitWithBadSignature(uint256 amount, address spender)
         public
     {
+        // spender will never be zero address
+        vm.assume(spender != address(0));
+
+        // initialize TokenImplementation
         InitiateParameters memory init;
         init.name = "Valuable Token";
         init.symbol = "VALU";
@@ -170,12 +181,18 @@ contract TestTokenImplementation is TokenImplementation, Test {
         bytes32 PERMIT_TYPEHASH = keccak256(
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
         );
+
+        // avoid overflow for this test
+        uint256 wrongAmount;
+        unchecked {
+            wrongAmount = amount + 1; // amount will never equal
+        }
         bytes32 structHash = keccak256(
             abi.encode(
                 PERMIT_TYPEHASH,
                 allower,
                 spender,
-                amount + 1, // amount will never equal
+                wrongAmount,
                 nonces(allower),
                 deadline
             )
@@ -184,14 +201,19 @@ contract TestTokenImplementation is TokenImplementation, Test {
         bytes32 message = ECDSA.toTypedDataHash(DOMAIN_SEPARATOR(), structHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(sk, message);
 
-        vm.assume(spender != address(0));
+        // you shall not pass!
+        // TODO: change "testFail" to "test" and change to vm.expectRevert("ERC20Permit: invalid signature")
         permit(allower, spender, amount, deadline, v, r, s);
     }
 
-    function testFailPermitWithSignatureUsedAfterDeadline(
+    function testPermitWithSignatureUsedAfterDeadline(
         uint256 amount,
         address spender
     ) public {
+        // spender will never be zero address
+        vm.assume(spender != address(0));
+
+        // initialize TokenImplementation
         InitiateParameters memory init;
         init.name = "Valuable Token";
         init.symbol = "VALU";
@@ -229,7 +251,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
                 PERMIT_TYPEHASH,
                 allower,
                 spender,
-                amount + 1, // amount will never equal
+                amount,
                 nonces(allower),
                 deadline
             )
@@ -241,7 +263,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
         // waited too long
         vm.warp(deadline + 1);
 
-        vm.assume(spender != address(0));
+        // and fail
+        vm.expectRevert("ERC20Permit: expired deadline");
         permit(allower, spender, amount, deadline, v, r, s);
     }
 }
