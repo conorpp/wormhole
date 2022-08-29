@@ -4,6 +4,7 @@ import {
   createInitializeAccountInstruction,
   createTransferInstruction,
   getMinimumBalanceForRentExemptMint,
+  getMint,
   NATIVE_MINT,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
@@ -20,33 +21,30 @@ import { MsgExecuteContract } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers, Overrides } from "ethers";
 import { fromUint8Array } from "js-base64";
-import { TransactionSignerPair, _submitVAAAlgorand } from "../algorand";
+import {
+  Account as nearAccount,
+  providers as nearProviders,
+} from "near-api-js";
+import BN from "bn.js";
+import {
+  TransactionSignerPair,
+  _parseVAAAlgorand,
+  _submitVAAAlgorand,
+} from "../algorand";
 import { Bridge__factory } from "../ethers-contracts";
 import {
   CHAIN_ID_NEAR,
   CHAIN_ID_SOLANA,
   ChainId,
-  ChainName,
   MAX_VAA_DECIMALS,
-  WSOL_ADDRESS,
-  WSOL_DECIMALS,
   uint8ArrayToHex,
 } from "../utils";
-
-import { getForeignAssetNear } from "./getForeignAsset";
-
-import { _parseVAAAlgorand } from "../algorand";
-
-import { hexToNativeString } from "../utils/array";
-import { parseTransferPayload } from "../utils/parseVaa";
-import { Account as nearAccount } from "near-api-js";
-import BN from "bn.js";
-import { providers as nearProviders } from "near-api-js";
 import {
   createCompleteTransferNativeInstruction,
   createCompleteTransferWrappedInstruction,
 } from "../solana/tokenBridge";
 import { SignedVaa, parseTokenTransferVaa } from "../vaa";
+import { getForeignAssetNear } from "./getForeignAsset";
 
 export async function redeemOnEth(
   tokenBridgeAddress: string,
@@ -94,11 +92,13 @@ export async function redeemAndUnwrapOnSolana(
 ) {
   const parsed = parseTokenTransferVaa(signedVaa);
   const targetPublicKey = new PublicKey(parsed.to);
-  const targetAmount =
-    parsed.amount * BigInt(Math.pow(10, WSOL_DECIMALS - MAX_VAA_DECIMALS));
+  const targetAmount = await getMint(connection, NATIVE_MINT, commitment).then(
+    (info) =>
+      parsed.amount * BigInt(Math.pow(10, info.decimals - MAX_VAA_DECIMALS))
+  );
   const rentBalance = await getMinimumBalanceForRentExemptMint(connection);
   if (Buffer.compare(parsed.tokenAddress, NATIVE_MINT.toBuffer()) != 0) {
-    return Promise.reject("tokenAddres != WSOL_ADDRESS");
+    return Promise.reject("tokenAddress != NATIVE_MINT");
   }
   const payerPublicKey = new PublicKey(payerAddress);
   const ancillaryKeypair = Keypair.generate();

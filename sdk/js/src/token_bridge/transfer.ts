@@ -28,6 +28,11 @@ import {
   Transaction as AlgorandTransaction,
 } from "algosdk";
 import { ethers, Overrides, PayableOverrides } from "ethers";
+import BN from "bn.js";
+import {
+  Account as nearAccount,
+  providers as nearProviders,
+} from "near-api-js";
 import { isNativeDenom } from "..";
 import {
   assetOptinCheck,
@@ -40,7 +45,7 @@ import {
   Bridge__factory,
   TokenImplementation__factory,
 } from "../ethers-contracts";
-import { createBridgeFeeTransferInstruction, ixFromRust } from "../solana";
+import { createBridgeFeeTransferInstruction } from "../solana";
 import {
   createApproveAuthoritySignerInstruction,
   createTransferNativeInstruction,
@@ -52,18 +57,14 @@ import {
   CHAIN_ID_SOLANA,
   ChainId,
   ChainName,
-  WSOL_ADDRESS,
   coalesceChainId,
   createNonce,
   hexToUint8Array,
+  safeBigIntToNumber,
   textToUint8Array,
   uint8ArrayToHex,
 } from "../utils";
-import { safeBigIntToNumber } from "../utils/bigint";
-import { Account as nearAccount, providers as nearProviders } from "near-api-js";
 import { parseSequenceFromLogNear } from "../bridge/parseSequenceFromLog";
-
-const BN = require("bn.js");
 
 export async function getAllowanceEth(
   tokenBridgeAddress: string,
@@ -638,7 +639,7 @@ export async function transferFromAlgorand(
 /**
  * Transfers an asset from Near to a receiver on another chain
  * @param client
- * @param coreBridge account 
+ * @param coreBridge account
  * @param tokenBridge account of the token bridge
  * @param assetId account
  * @param qty Quantity to transfer
@@ -663,7 +664,7 @@ export async function transferTokenFromNear(
 
   let result;
 
-  let message_fee = (await client.viewFunction(coreBridge, "message_fee", {}));
+  let message_fee = await client.viewFunction(coreBridge, "message_fee", {});
 
   if (wormhole) {
     result = await client.functionCall({
@@ -700,7 +701,9 @@ export async function transferTokenFromNear(
     }
 
     if (message_fee > 0) {
-      let bank = await client.viewFunction(tokenBridge, "bank_balance", { acct: client.accountId });
+      let bank = await client.viewFunction(tokenBridge, "bank_balance", {
+        acct: client.accountId,
+      });
 
       if (!bank[0]) {
         await client.functionCall({
@@ -748,7 +751,7 @@ export async function transferTokenFromNear(
 /**
  * Transfers NEAR from Near to a receiver on another chain
  * @param client
- * @param coreBridge account 
+ * @param coreBridge account
  * @param tokenBridge account of the token bridge
  * @param qty Quantity to transfer
  * @param receiver Receiving account
@@ -779,7 +782,7 @@ export async function transferNearFromNear(
       payload: payload,
       message_fee: message_fee,
     },
-    attachedDeposit: (new BN(qty.toString(10)) + new BN(message_fee)),
+    attachedDeposit: new BN(qty.toString(10)).add(new BN(message_fee)),
     gas: new BN("100000000000000"),
   });
 

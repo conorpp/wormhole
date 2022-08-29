@@ -18,7 +18,7 @@ import {
   SuggestedParams,
 } from "algosdk";
 import { Account as nearAccount } from "near-api-js";
-const BN = require("bn.js");
+import BN from "bn.js";
 import { ethers, PayableOverrides } from "ethers";
 import { isNativeDenom } from "..";
 import { getMessageFee, optin, TransactionSignerPair } from "../algorand";
@@ -253,7 +253,7 @@ export async function attestTokenFromNear(
     contractId: tokenBridge,
     methodName: "attest_token",
     args: { token: asset, message_fee: message_fee },
-    attachedDeposit: new BN("3000000000000000000000") + new BN(message_fee), // 0.003 NEAR
+    attachedDeposit: new BN("3000000000000000000000").add(new BN(message_fee)), // 0.003 NEAR
     gas: new BN("100000000000000"),
   });
 

@@ -1,9 +1,4 @@
-import {
-  Commitment,
-  Connection,
-  PublicKey,
-  PublicKeyInitData,
-} from "@solana/web3.js";
+import { Commitment, Connection, PublicKeyInitData } from "@solana/web3.js";
 import { LCDClient } from "@terra-money/terra.js";
 import { Algodv2 } from "algosdk";
 import { ethers } from "ethers";
@@ -22,7 +17,6 @@ import {
   coalesceChainId,
 } from "../utils";
 import { Account as nearAccount } from "near-api-js";
-const BN = require("bn.js");
 
 /**
  * Returns a foreign asset address on Ethereum for a provided native chain and asset address, AddressZero if it does not exist
