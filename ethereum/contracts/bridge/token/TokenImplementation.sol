@@ -34,7 +34,7 @@ contract TokenImplementation is TokenState, Context {
         );
 
         // initialize w/ EIP712 state variables for domain separator
-        _initializePermitState();
+        _initializePermitStateIfNeeded();
     }
 
     function _initializeNativeToken(
@@ -57,17 +57,19 @@ contract TokenImplementation is TokenState, Context {
         _state.nativeContract = nativeContract_;
     }
 
-    function _initializePermitState() internal {
-        _state.hashedTokenChain = _hashedTokenChain();
-        _state.hashedNativeContract = _hashedNativeContract();
-        _state.hashedVersion = _hashedDomainVersion();
-        _state.typeHash = _hashedDomainType();
-        _state.cachedChainId = block.chainid;
-        _state.cachedDomainSeparator = _buildNativeDomainSeparator(
-            _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
-        );
-        _state.cachedThis = address(this);
-        _state.permitInitialized = true;
+    function _initializePermitStateIfNeeded() internal {
+        if (!permitInitialized()) {
+            _state.hashedTokenChain = _hashedTokenChain();
+            _state.hashedNativeContract = _hashedNativeContract();
+            _state.hashedVersion = _hashedDomainVersion();
+            _state.typeHash = _hashedDomainType();
+            _state.cachedChainId = block.chainid;
+            _state.cachedDomainSeparator = _buildNativeDomainSeparator(
+                _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
+            );
+            _state.cachedThis = address(this);
+            _state.permitInitialized = true;
+        }
     }
 
     function name() public view returns (string memory) {
@@ -267,10 +269,8 @@ contract TokenImplementation is TokenState, Context {
         bytes32 s_
     ) public {
         // for those tokens that have been initialized before permit, we need to set
-        // the permit state variables
-        if (!permitInitialized()) {
-           _initializePermitState();
-        }
+        // the permit state variables if they have not been set before
+        _initializePermitStateIfNeeded();
 
         // permit is only allowed before the signature's deadline
         require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");

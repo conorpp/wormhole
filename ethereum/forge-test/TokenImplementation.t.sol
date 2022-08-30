@@ -247,7 +247,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         require(!permitInitialized(), "permit state should not be initialized");
 
         // explicity call private method
-        _initializePermitState();
+        _initializePermitStateIfNeeded();
         require(permitInitialized(), "permit state should be initialized");
 
         // check permit state variables
