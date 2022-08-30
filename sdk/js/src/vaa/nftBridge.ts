@@ -21,8 +21,8 @@ export interface NftTransfer {
   payloadType: NftBridgePayload.Transfer;
   tokenAddress: Buffer;
   tokenChain: number;
-  name: string;
   symbol: string;
+  name: string;
   tokenId: bigint;
   uri: string;
   to: Buffer;
@@ -36,8 +36,8 @@ export function parseNftTransferPayload(payload: Buffer): NftTransfer {
   }
   const tokenAddress = payload.subarray(1, 33);
   const tokenChain = payload.readUInt16BE(33);
-  const name = payload.subarray(35, 67).toString().replace(/\0/g, "");
-  const symbol = payload.subarray(67, 99).toString().replace(/\0/g, "");
+  const symbol = payload.subarray(35, 67).toString().replace(/\0/g, "");
+  const name = payload.subarray(67, 99).toString().replace(/\0/g, "");
   const tokenId = BigInt(new BN(payload.subarray(99, 131)).toString());
   const uriLen = payload.readUInt8(131);
   const uri = payload.subarray(132, 132 + uriLen).toString();

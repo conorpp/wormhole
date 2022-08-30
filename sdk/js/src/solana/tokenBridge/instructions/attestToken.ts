@@ -6,7 +6,7 @@ import {
 import { createReadOnlyTokenBridgeProgramInterface } from "../program";
 import { getPostMessageAccounts } from "../../wormhole";
 import {
-  deriveSplTokenMetaKey,
+  deriveSplTokenMetadataKey,
   deriveTokenBridgeConfigKey,
   deriveWrappedMetaKey,
 } from "../accounts";
@@ -83,7 +83,7 @@ export function getAttestTokenAccounts(
     config: deriveTokenBridgeConfigKey(tokenBridgeProgramId),
     mint: new PublicKey(mint),
     wrappedMeta: deriveWrappedMetaKey(tokenBridgeProgramId, mint),
-    splMetadata: deriveSplTokenMetaKey(mint),
+    splMetadata: deriveSplTokenMetadataKey(mint),
     wormholeConfig,
     wormholeMessage: new PublicKey(message),
     wormholeEmitter,

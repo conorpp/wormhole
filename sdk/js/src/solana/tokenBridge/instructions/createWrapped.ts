@@ -11,7 +11,7 @@ import { deriveClaimKey, derivePostedVaaKey } from "../../wormhole";
 import {
   deriveEndpointKey,
   deriveMintAuthorityKey,
-  deriveSplTokenMetaKey,
+  deriveSplTokenMetadataKey,
   deriveWrappedMetaKey,
   deriveTokenBridgeConfigKey,
   deriveWrappedMintKey,
@@ -96,7 +96,7 @@ export function getCreateWrappedAccounts(
     ),
     mint,
     wrappedMeta: deriveWrappedMetaKey(tokenBridgeProgramId, mint),
-    splMetadata: deriveSplTokenMetaKey(mint),
+    splMetadata: deriveSplTokenMetadataKey(mint),
     mintAuthority: deriveMintAuthorityKey(tokenBridgeProgramId),
     rent: SYSVAR_RENT_PUBKEY,
     systemProgram: SystemProgram.programId,

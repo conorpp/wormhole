@@ -32,8 +32,10 @@ mkdir -p $PROGRAM_LOGS
 RPC=http://localhost:8899
 solana logs Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o --url $RPC > $PROGRAM_LOGS/Bridge1p5gheXUvJ6jGWGeCsgPKgnE3YgdGKRVCMY9o &
 solana logs B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE --url $RPC > $PROGRAM_LOGS/B6RHG3mfcckmrYN1UhmJzyS1XX3fZKbkeUcpJe9Sy3FE &
+solana logs NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA --url $RPC > $PROGRAM_LOGS/NFTWqJR8YnRVqPDvTJrYuLrQDitTG5AScqbeghi4zSA &
+solana logs Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK --url $RPC > $PROGRAM_LOGS/Ex9bCdVMSfx7EzB3pgSi2R4UHwJAXvTw18rBQm5YQ8gK &
 solana logs KeccakSecp256k11111111111111111111111111111 --url $RPC > $PROGRAM_LOGS/KeccakSecp256k11111111111111111111111111111 &
-
+solana logs metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s --url $RPC > $PROGRAM_LOGS/metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s &
 
 ### run tests
 yarn run ts-mocha -p ./tsconfig.json -t 1000000 sdk-tests/*.ts

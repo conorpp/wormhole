@@ -12,7 +12,7 @@ import {
 } from "../../../utils";
 import { deriveAddress, getAccountData } from "../../utils";
 
-export { deriveSplTokenMetaKey } from "../../utils/splMetadata";
+export { deriveSplTokenMetadataKey } from "../../utils/splMetadata";
 
 export function deriveWrappedMintKey(
   tokenBridgeProgramId: PublicKeyInitData,

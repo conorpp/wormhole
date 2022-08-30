@@ -4,7 +4,7 @@ import { createReadOnlyProvider } from "../utils";
 import { NftBridgeCoder } from "./coder";
 import { NftBridge } from "../types/nftBridge";
 
-import IDL from "../../anchor-idl/token_bridge.json";
+import IDL from "../../anchor-idl/nft_bridge.json";
 
 export function createNftBridgeProgramInterface(
   programId: PublicKeyInitData,

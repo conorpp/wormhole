@@ -12,6 +12,10 @@ import {
   deriveNftBridgeConfigKey,
   deriveCustodyKey,
 } from "../accounts";
+import {
+  deriveSplTokenMetadataKey,
+  SplTokenMetadataProgram,
+} from "../../utils";
 
 export function createTransferNativeInstruction(
   nftBridgeProgramId: PublicKeyInitData,
@@ -54,6 +58,7 @@ export interface TransferNativeAccounts {
   config: PublicKey;
   from: PublicKey;
   mint: PublicKey;
+  splMetadata: PublicKey;
   custody: PublicKey;
   authoritySigner: PublicKey;
   custodySigner: PublicKey;
@@ -66,6 +71,7 @@ export interface TransferNativeAccounts {
   rent: PublicKey;
   systemProgram: PublicKey;
   tokenProgram: PublicKey;
+  splMetadataProgram: PublicKey;
   wormholeProgram: PublicKey;
 }
 
@@ -97,6 +103,7 @@ export function getTransferNativeAccounts(
     config: deriveNftBridgeConfigKey(nftBridgeProgramId),
     from: new PublicKey(from),
     mint: new PublicKey(mint),
+    splMetadata: deriveSplTokenMetadataKey(mint),
     custody: deriveCustodyKey(nftBridgeProgramId, mint),
     authoritySigner: deriveAuthoritySignerKey(nftBridgeProgramId),
     custodySigner: deriveCustodySignerKey(nftBridgeProgramId),
@@ -109,6 +116,7 @@ export function getTransferNativeAccounts(
     rent,
     systemProgram,
     tokenProgram: TOKEN_PROGRAM_ID,
+    splMetadataProgram: SplTokenMetadataProgram.programId,
     wormholeProgram: new PublicKey(wormholeProgramId),
   };
 }
