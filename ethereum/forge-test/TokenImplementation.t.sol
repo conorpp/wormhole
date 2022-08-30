@@ -9,6 +9,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 contract TestTokenImplementation is TokenImplementation, Test {
+    uint256 constant SECP256K1_CURVE_ORDER =
+        115792089237316195423570985008687907852837564279074904382605163141518161494337;
+
     struct InitiateParameters {
         string name;
         string symbol;
@@ -105,6 +108,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender
     ) public {
         vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
         vm.assume(spender != address(0));
 
         // initialize TokenImplementation
@@ -143,6 +147,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender
     ) public {
         vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
         vm.assume(spender != address(0));
 
         // initialize TokenImplementation
@@ -177,6 +182,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender
     ) public {
         vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
         vm.assume(spender != address(0));
 
         // initialize TokenImplementation
@@ -214,6 +220,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender
     ) public {
         vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
         vm.assume(spender != address(0));
 
         // initialize TokenImplementation
@@ -302,6 +309,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender
     ) public {
         vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
         vm.assume(spender != address(0));
 
         // initialize TokenImplementation as if it were the old implementation
