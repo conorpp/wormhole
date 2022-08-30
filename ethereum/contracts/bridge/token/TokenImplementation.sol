@@ -19,12 +19,33 @@ contract TokenImplementation is TokenState, Context {
         string memory symbol_,
         uint8 decimals_,
         uint64 sequence_,
-
         address owner_,
-
         uint16 chainId_,
         bytes32 nativeContract_
     ) initializer public {
+        _initializeNativeToken(
+            name_,
+            symbol_,
+            decimals_,
+            sequence_,
+            owner_,
+            chainId_,
+            nativeContract_
+        );
+
+        // initialize w/ EIP712 state variables for domain separator
+        _initializePermitState();
+    }
+
+    function _initializeNativeToken(
+        string memory name_,
+        string memory symbol_,
+        uint8 decimals_,
+        uint64 sequence_,
+        address owner_,
+        uint16 chainId_,
+        bytes32 nativeContract_
+    ) internal {
         _state.name = name_;
         _state.symbol = symbol_;
         _state.decimals = decimals_;
@@ -34,20 +55,19 @@ contract TokenImplementation is TokenState, Context {
 
         _state.chainId = chainId_;
         _state.nativeContract = nativeContract_;
+    }
 
-        // EIP712 for domain separator
-        _state.version = "1";
-        _state.hashedTokenChain = keccak256(abi.encodePacked(_state.chainId));
-        _state.hashedNativeContract = keccak256(abi.encodePacked(_state.nativeContract));
-        _state.hashedVersion = keccak256(bytes(_state.version));
-        _state.typeHash = keccak256(
-            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-        );
+    function _initializePermitState() internal {
+        _state.hashedTokenChain = _hashedTokenChain();
+        _state.hashedNativeContract = _hashedNativeContract();
+        _state.hashedVersion = _hashedDomainVersion();
+        _state.typeHash = _hashedDomainType();
         _state.cachedChainId = block.chainid;
         _state.cachedDomainSeparator = _buildNativeDomainSeparator(
             _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
         );
         _state.cachedThis = address(this);
+        _state.permitInitialized = true;
     }
 
     function name() public view returns (string memory) {
@@ -198,7 +218,10 @@ contract TokenImplementation is TokenState, Context {
             return _state.cachedDomainSeparator;
         } else {
             return _buildNativeDomainSeparator(
-                _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
+                _hashedDomainType(),
+                _hashedTokenChain(),
+                _hashedNativeContract(),
+                _hashedDomainVersion()
             );
         }
     }
@@ -208,7 +231,7 @@ contract TokenImplementation is TokenState, Context {
         bytes32 tokenChainHash,
         bytes32 nativeContractHash,
         bytes32 versionHash
-    ) private view returns (bytes32) {
+    ) internal view returns (bytes32) {
         return keccak256(abi.encode(typeHash, tokenChainHash, nativeContractHash, versionHash, block.chainid, address(this)));
     }
 
@@ -243,19 +266,23 @@ contract TokenImplementation is TokenState, Context {
         bytes32 r_,
         bytes32 s_
     ) public {
+        // for those tokens that have been initialized before permit, we need to set
+        // the permit state variables
+        if (!permitInitialized()) {
+           _initializePermitState();
+        }
+
+        // permit is only allowed before the signature's deadline
         require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");
 
-        // solhint-disable-next-line var-name-mixedcase
-        bytes32 _PERMIT_TYPEHASH =
-            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-
         bytes32 structHash = keccak256(
-            abi.encode(_PERMIT_TYPEHASH, owner_, spender_, value_, _useNonce(owner_), deadline_)
+            abi.encode(_hashedPermitType(), owner_, spender_, value_, _useNonce(owner_), deadline_)
         );
 
         bytes32 message = _hashTypedDataV4(structHash);
-
         address signer = ECDSA.recover(message, v_, r_, s_);
+
+        // if we cannot recover the token owner, signature is invalid
         require(signer == owner_, "ERC20Permit: invalid signature");
 
         _approve(owner_, spender_, value_);
@@ -267,5 +294,25 @@ contract TokenImplementation is TokenState, Context {
     // solhint-disable-next-line func-name-mixedcase
     function DOMAIN_SEPARATOR() public view returns (bytes32) {
         return _domainSeparatorV4();
+    }
+
+    function _hashedTokenChain() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(_state.chainId));
+    }
+
+    function _hashedNativeContract() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(_state.nativeContract));
+    }
+
+    function _hashedDomainVersion() internal pure returns (bytes32) {
+        return keccak256(bytes("1"));
+    }
+
+    function _hashedDomainType() internal pure returns (bytes32) {
+        return keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    }
+
+    function _hashedPermitType() internal pure returns (bytes32) {
+        return keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     }
 }

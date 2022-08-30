@@ -29,7 +29,7 @@ contract TokenStorage {
         // EIP712
         // Cache the domain separator as an immutable value, but also store the chain id that it corresponds to, in order to
         // invalidate the cached domain separator if the chain id changes.
-        string version;
+        bool permitInitialized;
         bytes32 cachedDomainSeparator;
         uint256 cachedChainId;
         address cachedThis;
@@ -63,5 +63,9 @@ contract TokenState {
         Counters.Counter storage nonce = _state.nonces[owner_];
         current = nonce.current();
         nonce.increment();
+    }
+
+    function permitInitialized() public view returns (bool) {
+        return _state.permitInitialized;
     }
 }
