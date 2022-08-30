@@ -104,7 +104,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
         uint256 amount,
         address spender
     ) public {
-        // spender will never be zero address
         vm.assume(walletPrivateKey != bytes32(0));
         vm.assume(spender != address(0));
 
@@ -143,7 +142,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
         uint256 amount,
         address spender
     ) public {
-        // spender will never be zero address
         vm.assume(walletPrivateKey != bytes32(0));
         vm.assume(spender != address(0));
 
@@ -178,7 +176,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
         uint256 amount,
         address spender
     ) public {
-        // spender will never be zero address
         vm.assume(walletPrivateKey != bytes32(0));
         vm.assume(spender != address(0));
 
@@ -216,7 +213,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
         uint256 amount,
         address spender
     ) public {
-        // spender will never be zero address
         vm.assume(walletPrivateKey != bytes32(0));
         vm.assume(spender != address(0));
 
@@ -305,7 +301,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
         uint256 amount,
         address spender
     ) public {
-        // spender will never be zero address
         vm.assume(walletPrivateKey != bytes32(0));
         vm.assume(spender != address(0));
 
