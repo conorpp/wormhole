@@ -21,6 +21,8 @@ contract NFTBridge is NFTBridgeGovernance {
 
     // Initiate a Transfer
     function transferNFT(address token, uint256 tokenID, uint16 recipientChain, bytes32 recipient, uint32 nonce) public payable returns (uint64 sequence) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -103,6 +105,8 @@ contract NFTBridge is NFTBridgeGovernance {
 
     // Execute a Transfer message
     function _completeTransfer(bytes memory encodedVm) internal {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);
@@ -150,6 +154,7 @@ contract NFTBridge is NFTBridgeGovernance {
 
     // Creates a wrapped asset using AssetMeta
     function _createWrapped(uint16 tokenChain, bytes32 tokenAddress, bytes32 name, bytes32 symbol) internal returns (address token) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
         require(tokenChain != chainId(), "can only wrap tokens from foreign chains");
         require(wrappedAsset(tokenChain, tokenAddress) == address(0), "wrapped asset already exists");
 

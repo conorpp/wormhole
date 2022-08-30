@@ -24,6 +24,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *  @dev Produce a AssetMeta message for a given token
      */
     function attestToken(address tokenAddress, uint32 nonce) public payable returns (uint64 sequence) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         // decimals, symbol & token are not part of the core ERC20 token standard, so we need to support contracts that dont implement them
         (,bytes memory queriedDecimals) = tokenAddress.staticcall(abi.encodeWithSignature("decimals()"));
         (,bytes memory queriedSymbol) = tokenAddress.staticcall(abi.encodeWithSignature("symbol()"));
@@ -114,6 +116,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     function _wrapAndTransferETH(uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         uint wormholeFee = wormhole().messageFee();
 
         require(wormholeFee < msg.value, "value is smaller than wormhole fee");
@@ -217,6 +221,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
      *  @notice Initiate a transfer
      */
     function _transferTokens(address token, uint256 amount, uint256 arbiterFee) internal returns (BridgeStructs.TransferResult memory transferResult) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         // determine token parameters
         uint16 tokenChain;
         bytes32 tokenAddress;
@@ -365,6 +371,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
     }
 
     function _updateWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
         address wrapped = wrappedAsset(meta.tokenChain, meta.tokenAddress);
         require(wrapped != address(0), "wrapped asset does not exists");
 
@@ -386,6 +393,7 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     // Creates a wrapped asset using AssetMeta
     function _createWrapped(BridgeStructs.AssetMeta memory meta, uint64 sequence) internal returns (address token) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
         require(meta.tokenChain != chainId(), "can only wrap tokens from foreign chains");
         require(wrappedAsset(meta.tokenChain, meta.tokenAddress) == address(0), "wrapped asset already exists");
 
@@ -485,6 +493,8 @@ contract Bridge is BridgeGovernance, ReentrancyGuard {
 
     // Execute a Transfer message
     function _completeTransfer(bytes memory encodedVm, bool unwrapWETH) internal returns (bytes memory) {
+        require(evmChainId() == block.chainid, "invalid evmChainId");
+
         (IWormhole.VM memory vm, bool valid, string memory reason) = wormhole().parseAndVerifyVM(encodedVm);
 
         require(valid, reason);

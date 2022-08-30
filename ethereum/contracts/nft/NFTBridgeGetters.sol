@@ -27,7 +27,14 @@ contract NFTBridgeGetters is NFTBridgeState {
     }
 
     function chainId() public view returns (uint16){
+        if (evmChainId() != block.chainid) {
+            return type(uint16).max;
+        }
         return _state.provider.chainId;
+    }
+
+    function evmChainId() public view returns (uint256) {
+        return _state.evmChainId;
     }
 
     function governanceChainId() public view returns (uint16){
