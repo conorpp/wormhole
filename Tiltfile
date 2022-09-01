@@ -720,6 +720,8 @@ if near:
         ],
         resource_deps = ["const-gen"],
         labels = ["near"],
+        trigger_mode = trigger_mode,
+    )
 
 if sui:
     k8s_yaml_with_ns("devnet/sui-devnet.yaml")
@@ -728,9 +730,6 @@ if sui:
         ref = "sui-node",
         context = "sui",
         dockerfile = "sui/Dockerfile",
-        ref = "sui-contracts",
-        context = "sui",
-        dockerfile = "sui/Dockerfile.contracts",
     )
 
     k8s_resource(
