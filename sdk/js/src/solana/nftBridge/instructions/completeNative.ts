@@ -20,13 +20,14 @@ import {
   parseNftTransferVaa,
   SignedVaa,
 } from "../../../vaa";
+import { BN } from "@project-serum/anchor";
 
 export function createCompleteTransferNativeInstruction(
   nftBridgeProgramId: PublicKeyInitData,
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
   vaa: SignedVaa | ParsedNftTransferVaa,
-  toAuthority: PublicKeyInitData
+  feeRecipient?: PublicKeyInitData
 ): TransactionInstruction {
   const methods =
     createReadOnlyNftBridgeProgramInterface(
@@ -40,7 +41,7 @@ export function createCompleteTransferNativeInstruction(
       wormholeProgramId,
       payer,
       vaa,
-      toAuthority
+      feeRecipient
     ) as any,
     signers: undefined,
     remainingAccounts: undefined,
@@ -71,10 +72,11 @@ export function getCompleteTransferNativeAccounts(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
   vaa: SignedVaa | ParsedNftTransferVaa,
-  toAuthority: PublicKeyInitData
+  toAuthority?: PublicKeyInitData
 ): CompleteTransferNativeAccounts {
   const parsed = isBytes(vaa) ? parseNftTransferVaa(vaa) : vaa;
-  const mint = new PublicKey(parsed.tokenAddress);
+  // the mint key is encoded in the tokenId when it was transferred out
+  const mint = new PublicKey(new BN(parsed.tokenId.toString()).toBuffer());
   return {
     payer: new PublicKey(payer),
     config: deriveNftBridgeConfigKey(nftBridgeProgramId),
@@ -91,7 +93,7 @@ export function getCompleteTransferNativeAccounts(
       parsed.emitterAddress
     ),
     to: new PublicKey(parsed.to),
-    toAuthority: new PublicKey(toAuthority),
+    toAuthority: new PublicKey(toAuthority == undefined ? payer : toAuthority),
     custody: deriveCustodyKey(nftBridgeProgramId, mint),
     mint,
     custodySigner: deriveCustodySignerKey(nftBridgeProgramId),

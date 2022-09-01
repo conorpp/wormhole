@@ -961,11 +961,10 @@ describe("Token Bridge", () => {
         expect(custodyBalanceBefore - custodyBalanceAfter).to.equal(amount);
 
         // verify data
-        const parsed = parseVaa(signedVaa);
         const messageData = await getPostedVaa(
           connection,
           CORE_BRIDGE_ADDRESS,
-          parsed.hash
+          parseVaa(signedVaa).hash
         ).then((posted) => posted.message);
 
         expect(messageData.consistencyLevel).to.equal(

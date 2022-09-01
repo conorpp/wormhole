@@ -32,7 +32,7 @@ export class MockNftBridge extends MockEmitter {
     tokenChain: number,
     name: string,
     symbol: string,
-    tokenId: number,
+    tokenId: bigint,
     uri: string,
     recipientChain: number,
     recipient: string,
@@ -48,12 +48,12 @@ export class MockNftBridge extends MockEmitter {
     serialized.write(tokenAddress, 1, "hex");
     serialized.writeUInt16BE(tokenChain, 33);
     // truncate to 32 characters
-    name = name.substring(0, 32);
-    serialized.write(name, 67 - name.length);
-    // truncate to 32 characters
     symbol = symbol.substring(0, 32);
-    serialized.write(symbol, 99 - symbol.length);
-    const tokenIdBytes = new BN(tokenId).toBuffer();
+    serialized.write(symbol, 35);
+    // truncate to 32 characters
+    name = name.substring(0, 32);
+    serialized.write(name, 67);
+    const tokenIdBytes = new BN(tokenId.toString()).toBuffer();
     serialized.write(
       tokenIdBytes.toString("hex"),
       131 - tokenIdBytes.length,
@@ -64,7 +64,12 @@ export class MockNftBridge extends MockEmitter {
     const uriEnd = 132 + uri.length;
     serialized.write(recipient, uriEnd, "hex");
     serialized.writeUInt16BE(recipientChain, uriEnd + 32);
-    this.publishNftBridgeMessage(serialized, nonce, timestamp, uptickSequence);
+    return this.publishNftBridgeMessage(
+      serialized,
+      nonce,
+      timestamp,
+      uptickSequence
+    );
   }
 }
 

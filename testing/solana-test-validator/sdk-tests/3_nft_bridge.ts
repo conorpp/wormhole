@@ -20,6 +20,7 @@ import { postVaa } from "../../../sdk/js/src/solana/sendAndConfirmPostVaa";
 import {
   deriveSplTokenMetadataKey,
   deriveWormholeEmitterKey,
+  getMetadata,
   getPostedMessage,
   getPostedVaa,
   NodeWallet,
@@ -44,11 +45,13 @@ import {
 import { ethAddressToBuffer, now } from "./helpers/utils";
 import {
   createApproveAuthoritySignerInstruction,
+  createCompleteTransferNativeInstruction,
   createInitializeInstruction,
   createRegisterChainInstruction,
   createTransferNativeInstruction,
   deriveCustodyKey,
   deriveEndpointKey,
+  getCompleteTransferNativeAccounts,
   getEndpointRegistration,
   getInitializeAccounts,
   getNftBridgeConfig,
@@ -94,7 +97,7 @@ describe("NFT Bridge", () => {
     const symbol = localVariables.nftMeta.symbol;
     const updateAuthorityIsSigner = false;
     const uri = localVariables.nftMeta.uri;
-    const creators = undefined;
+    const creators = null;
     const sellerFeeBasisPoints = 0;
     const isMutable = false;
     const createMetadataIx = SplTokenMetadataProgram.createMetadataAccounts(
@@ -114,10 +117,9 @@ describe("NFT Bridge", () => {
     const createMetadataTx = await web3.sendAndConfirmTransaction(
       connection,
       new web3.Transaction().add(createMetadataIx),
-      [wallet.signer()],
-      { skipPreflight: true }
+      [wallet.signer()]
     );
-    console.log("createMatadataTx", createMetadataTx);
+    // console.log("createMatadataTx", createMetadataTx);
 
     localVariables.mintAta = await getOrCreateAssociatedTokenAccount(
       connection,
@@ -134,10 +136,6 @@ describe("NFT Bridge", () => {
       wallet.key(),
       1
     );
-  });
-
-  before("Create Mint with Metadata", async () => {
-    // TODO
   });
 
   describe("Accounts", () => {
@@ -167,14 +165,72 @@ describe("NFT Bridge", () => {
         .true;
     });
 
-    it("Instruction 1: Complete Native", () => {
+    it("Instruction 1: Complete Native", async () => {
       const timestamp = 12345678;
-      // TODO
+      const mint = NATIVE_MINT;
+      const mintAta = await getAssociatedTokenAddress(mint, payer);
+
+      const nftMeta = localVariables.nftMeta;
+      const tokenId = BigInt(new BN(mint.toBuffer()).toString());
+      const nonce = 420;
+      const message = ethereumNftBridge.publishTransferNft(
+        Buffer.alloc(32, 1).toString("hex"),
+        1,
+        nftMeta.name,
+        nftMeta.symbol,
+        tokenId,
+        nftMeta.uri,
+        1,
+        mintAta.toBuffer().toString("hex"),
+        nonce,
+        timestamp
+      );
+
+      const signedVaa = guardians.addSignatures(
+        message,
+        [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
+      );
+
+      const accounts = getCompleteTransferNativeAccounts(
+        NFT_BRIDGE_ADDRESS,
+        CORE_BRIDGE_ADDRESS,
+        payer,
+        signedVaa
+      );
+
+      // verify accounts
+      expect(accounts.config.toString()).to.equal(
+        "FEBC3gqEA3bto28QpBaJiw3zB2G1BS6AgUUrph9RSGkt"
+      );
+      expect(accounts.vaa.toString()).to.equal(
+        "EUv9rpM2rEi2PjZZmtqkcK96JFbbamdXtKyHSt1WomWY"
+      );
+      expect(accounts.claim.toString()).to.equal(
+        "GF1Pvd3G7argJkEk7su4s3MP6AaXDvJmVjreKq9uawXA"
+      );
+      expect(accounts.endpoint.toString()).to.equal(
+        "8bb1dHmy8BqoSr43H2Wcko8cvE2kDQXuB7zQ8dJhpRLh"
+      );
+      expect(accounts.to.equals(mintAta)).to.be.true;
+      expect(accounts.toAuthority.equals(payer)).to.be.true;
+      expect(accounts.custody.toString()).to.equal(
+        "23umKjJUsze7y3dEtzokgLfjbmf6QBzJZF32aM8b7tv4"
+      );
+      expect(accounts.mint.toString()).to.equal(
+        "So11111111111111111111111111111111111111112"
+      );
+      expect(accounts.custodySigner.toString()).to.equal(
+        "J62hXP1481E4FZEEURzkqi1t79hekbyC65wSM8SMyr4B"
+      );
+      expect(accounts.rent.equals(web3.SYSVAR_RENT_PUBKEY)).to.be.true;
+      expect(accounts.systemProgram.equals(web3.SystemProgram.programId)).to.be
+        .true;
+      expect(accounts.tokenProgram.equals(TOKEN_PROGRAM_ID)).to.be.true;
+      expect(accounts.wormholeProgram.equals(CORE_BRIDGE_ADDRESS)).to.be.true;
     });
 
-    it("Instruction 2: Complete Wrapped", () => {
+    it("Instruction 2: Complete Wrapped", async () => {
       const timestamp = 23456789;
-      // TODO
     });
 
     it("Instruction 3: Complete Wrapped Meta", () => {
@@ -381,8 +437,8 @@ describe("NFT Bridge", () => {
 
     describe("Native Token Handling", () => {
       it("Send NFT", async () => {
-        const mint = localVariables.mint;
-        const mintAta = localVariables.mintAta;
+        const mint: web3.PublicKey = localVariables.mint;
+        const mintAta: web3.PublicKey = localVariables.mintAta;
         const custodyAccount = deriveCustodyKey(NFT_BRIDGE_ADDRESS, mint);
         const walletBalanceBefore = await getAccount(connection, mintAta).then(
           (account) => account.amount
@@ -470,110 +526,121 @@ describe("NFT Bridge", () => {
       });
 
       it("Receive NFT", async () => {
-        //   const mint = localVariables.mint;
-        //   const mintAta = localVariables.mintAta;
-        //   const custodyAccount = deriveCustodyKey(NFT_BRIDGE_ADDRESS, mint);
-        //   const walletBalanceBefore = await getAccount(connection, mintAta).then(
-        //     (account) => account.amount
-        //   );
-        //   const custodyBalanceBefore = await getAccount(
-        //     connection,
-        //     custodyAccount
-        //   ).then((account) => account.amount);
-        //   const amount = 420n * BigInt(web3.LAMPORTS_PER_SOL);
-        //   const mintInfo = await getMint(connection, mint);
-        //   expect(mintInfo.decimals).greaterThan(8);
-        //   // decimals will be 8 on Ethereum token bridge
-        //   const amountEncoded =
-        //     amount / BigInt(Math.pow(10, mintInfo.decimals - 8));
-        //   const tokenChain = 1;
-        //   const recipientChain = 1;
-        //   const fee = 0n;
-        //   const nonce = 420;
-        //   const message = ethereumTokenBridge.publishTransferTokens(
-        //     mint.toBuffer().toString("hex"),
-        //     tokenChain,
-        //     amountEncoded,
-        //     recipientChain,
-        //     mintAta.toBuffer().toString("hex"),
-        //     fee,
-        //     nonce
-        //   );
-        //   const signedVaa = guardians.addSignatures(
-        //     message,
-        //     [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
-        //   );
-        //   const txSignatures = await postVaa(
-        //     connection,
-        //     wallet.signTransaction,
-        //     CORE_BRIDGE_ADDRESS,
-        //     wallet.key(),
-        //     signedVaa
-        //   ).then((results) => results.map((result) => result.signature));
-        //   const postTx = txSignatures.pop()!;
-        //   for (const verifyTx of txSignatures) {
-        //     // console.log(`verifySignatures: ${verifyTx}`);
-        //   }
-        //   // console.log(`postVaa:          ${postTx}`);
-        //   const completeNativeTransferIx =
-        //     createCompleteTransferNativeInstruction(
-        //       NFT_BRIDGE_ADDRESS,
-        //       CORE_BRIDGE_ADDRESS,
-        //       wallet.key(),
-        //       signedVaa
-        //     );
-        //   const completeNativeTransferTx = await web3.sendAndConfirmTransaction(
-        //     connection,
-        //     new web3.Transaction().add(completeNativeTransferIx),
-        //     [wallet.signer()]
-        //   );
-        //   // console.log(`completeNativeTransferTx: ${completeNativeTransferTx}`);
-        //   const walletBalanceAfter = await getAccount(connection, mintAta).then(
-        //     (account) => account.amount
-        //   );
-        //   const custodyBalanceAfter = await getAccount(
-        //     connection,
-        //     custodyAccount
-        //   ).then((account) => account.amount);
-        //   // check balance changes
-        //   expect(walletBalanceAfter - walletBalanceBefore).to.equal(amount);
-        //   expect(custodyBalanceBefore - custodyBalanceAfter).to.equal(amount);
-        //   // verify data
-        //   const parsed = parseVaa(signedVaa);
-        //   const messageData = await getPostedVaa(
-        //     connection,
-        //     CORE_BRIDGE_ADDRESS,
-        //     parsed.hash
-        //   ).then((posted) => posted.message);
-        //   expect(messageData.consistencyLevel).to.equal(
-        //     ethereumTokenBridge.consistencyLevel
-        //   );
-        //   expect(
-        //     Buffer.compare(
-        //       messageData.emitterAddress,
-        //       ethAddressToBuffer(ETHEREUM_NFT_BRIDGE_ADDRESS)
-        //     )
-        //   ).to.equal(0);
-        //   expect(messageData.emitterChain).to.equal(ethereumTokenBridge.chain);
-        //   expect(messageData.nonce).to.equal(nonce);
-        //   expect(messageData.sequence).to.equal(1n);
-        //   expect(messageData.vaaTime).to.equal(0);
-        //   expect(messageData.vaaVersion).to.equal(1);
-        //   expect(
-        //     Buffer.compare(parseVaa(signedVaa).payload, messageData.payload)
-        //   ).to.equal(0);
-        //   const nftTransfer = parseTokenTransferPayload(messageData.payload);
-        //   expect(nftTransfer.payloadType).to.equal(1);
-        //   expect(nftTransfer.amount).to.equal(amountEncoded);
-        //   expect(nftTransfer.fee).to.equal(fee);
-        //   expect(Buffer.compare(nftTransfer.to, mintAta.toBuffer())).to.equal(
-        //     0
-        //   );
-        //   expect(nftTransfer.toChain).to.equal(recipientChain);
-        //   expect(
-        //     Buffer.compare(nftTransfer.tokenAddress, mint.toBuffer())
-        //   ).to.equal(0);
-        //   expect(nftTransfer.tokenChain).to.equal(tokenChain);
+        const mint: web3.PublicKey = localVariables.mint;
+        const mintAta: web3.PublicKey = localVariables.mintAta;
+        const custodyAccount = deriveCustodyKey(NFT_BRIDGE_ADDRESS, mint);
+        const walletBalanceBefore = await getAccount(connection, mintAta).then(
+          (account) => account.amount
+        );
+        const custodyBalanceBefore = await getAccount(
+          connection,
+          custodyAccount
+        ).then((account) => account.amount);
+
+        const metadata = await getMetadata(connection, mint).then(
+          (info) => info.data
+        );
+
+        const tokenId = BigInt(new BN(mint.toBuffer()).toString()); // special sauce in transfer_native;
+        const nonce = 420;
+        const message = ethereumNftBridge.publishTransferNft(
+          Buffer.alloc(32, 1).toString("hex"), // TODO: make a constant in the sdk?
+          1,
+          metadata.name,
+          metadata.symbol,
+          tokenId,
+          metadata.uri,
+          1,
+          mintAta.toBuffer().toString("hex"),
+          nonce
+        );
+
+        const signedVaa = guardians.addSignatures(
+          message,
+          [0, 1, 2, 3, 5, 7, 8, 9, 10, 12, 15, 16, 18]
+        );
+
+        const txSignatures = await postVaa(
+          connection,
+          wallet.signTransaction,
+          CORE_BRIDGE_ADDRESS,
+          wallet.key(),
+          signedVaa
+        ).then((results) => results.map((result) => result.signature));
+        const postTx = txSignatures.pop()!;
+        for (const verifyTx of txSignatures) {
+          // console.log(`verifySignatures: ${verifyTx}`);
+        }
+        // console.log(`postVaa:          ${postTx}`);
+
+        const completeNativeTransferIx =
+          createCompleteTransferNativeInstruction(
+            NFT_BRIDGE_ADDRESS,
+            CORE_BRIDGE_ADDRESS,
+            wallet.key(),
+            signedVaa
+          );
+
+        const completeNativeTransferTx = await web3.sendAndConfirmTransaction(
+          connection,
+          new web3.Transaction().add(completeNativeTransferIx),
+          [wallet.signer()]
+        );
+        // console.log(`completeNativeTransferTx: ${completeNativeTransferTx}`);
+
+        const walletBalanceAfter = await getAccount(connection, mintAta).then(
+          (account) => account.amount
+        );
+        const custodyBalanceAfter = await getAccount(
+          connection,
+          custodyAccount
+        ).then((account) => account.amount);
+
+        // check balance changes
+        expect(walletBalanceAfter - walletBalanceBefore).to.equal(1n);
+        expect(custodyBalanceBefore - custodyBalanceAfter).to.equal(1n);
+
+        // verify data
+        const messageData = await getPostedVaa(
+          connection,
+          CORE_BRIDGE_ADDRESS,
+          parseVaa(signedVaa).hash
+        ).then((posted) => posted.message);
+        expect(messageData.consistencyLevel).to.equal(
+          ethereumNftBridge.consistencyLevel
+        );
+        expect(
+          Buffer.compare(
+            messageData.emitterAddress,
+            ethAddressToBuffer(ETHEREUM_NFT_BRIDGE_ADDRESS)
+          )
+        ).to.equal(0);
+        expect(messageData.emitterChain).to.equal(ethereumNftBridge.chain);
+        expect(messageData.nonce).to.equal(nonce);
+        expect(messageData.sequence).to.equal(1n);
+        expect(messageData.vaaTime).to.equal(0);
+        expect(messageData.vaaVersion).to.equal(1);
+        expect(
+          Buffer.compare(parseVaa(signedVaa).payload, messageData.payload)
+        ).to.equal(0);
+
+        const nftTransfer = parseNftTransferPayload(messageData.payload);
+        const nftMeta = localVariables.nftMeta;
+        expect(nftTransfer.payloadType).to.equal(1);
+        expect(
+          Buffer.compare(nftTransfer.tokenAddress, Buffer.alloc(32, 1))
+        ).to.equal(0);
+        expect(nftTransfer.tokenChain).to.equal(1);
+        expect(nftTransfer.name).to.equal(nftMeta.name);
+        expect(nftTransfer.symbol).to.equal(nftMeta.symbol);
+        expect(nftTransfer.tokenId).to.equal(
+          BigInt(new BN(mint.toBuffer()).toString())
+        );
+        const expectedUri = Buffer.alloc(200);
+        expectedUri.write(nftMeta.uri, 0);
+        expect(nftTransfer.uri).to.equal(expectedUri.toString());
+        expect(Buffer.compare(nftTransfer.to, mintAta.toBuffer())).to.equal(0);
+        expect(nftTransfer.toChain).to.equal(1);
       });
     });
 

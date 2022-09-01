@@ -1,5 +1,7 @@
 import {
   AccountMeta,
+  Commitment,
+  Connection,
   PublicKey,
   PublicKeyInitData,
   SystemProgram,
@@ -8,6 +10,7 @@ import {
 } from "@solana/web3.js";
 import {
   deriveAddress,
+  getAccountData,
   newAccountMeta,
   newReadOnlyAccountMeta,
 } from "./account";
@@ -39,6 +42,13 @@ export class Creator {
     }
     serialized.writeUInt8(this.share, 33);
     return serialized;
+  }
+
+  static deserialize(data: Buffer): Creator {
+    const address = data.subarray(0, 32);
+    const verified = data.readUInt8(32) > 0;
+    const share = data.readUInt8(33);
+    return new Creator(address, verified, share);
   }
 }
 
@@ -76,9 +86,16 @@ export class Data {
     const symbolLen = this.symbol.length;
     const uriLen = this.uri.length;
     const creators = this.creators;
-    const creatorsLen = creators == null ? 0 : creators.length;
+    const [creatorsLen, creatorsSize] = (() => {
+      if (creators == null) {
+        return [0, 0];
+      }
+
+      const creatorsLen = creators.length;
+      return [creatorsLen, 4 + creatorsLen * Creator.size];
+    })();
     const serialized = Buffer.alloc(
-      15 + nameLen + symbolLen + uriLen + creatorsLen * Creator.size
+      15 + nameLen + symbolLen + uriLen + creatorsSize
     );
     serialized.writeUInt32LE(nameLen, 0);
     serialized.write(this.name, 4);
@@ -94,13 +111,47 @@ export class Data {
       serialized.writeUInt8(0, 14 + nameLen + symbolLen + uriLen);
     } else {
       serialized.writeUInt8(1, 14 + nameLen + symbolLen + uriLen);
+      serialized.writeUInt32LE(creatorsLen, 15 + nameLen + symbolLen + uriLen);
       for (let i = 0; i < creatorsLen; ++i) {
         const creator = creators.at(i)!;
-        const idx = 15 + nameLen + symbolLen + uriLen + i * Creator.size;
+        const idx = 19 + nameLen + symbolLen + uriLen + i * Creator.size;
         serialized.write(creator.serialize().toString("hex"), idx, "hex");
       }
     }
     return serialized;
+  }
+
+  static deserialize(data: Buffer): Data {
+    const nameLen = data.readUInt32LE(0);
+    const name = data.subarray(4, 4 + nameLen).toString();
+    const symbolLen = data.readUInt32LE(4 + nameLen);
+    const symbol = data
+      .subarray(8 + nameLen, 8 + nameLen + symbolLen)
+      .toString();
+    const uriLen = data.readUInt32LE(8 + nameLen + symbolLen);
+    const uri = data
+      .subarray(12 + nameLen + symbolLen, 12 + nameLen + symbolLen + uriLen)
+      .toString();
+    const sellerFeeBasisPoints = data.readUInt16LE(
+      12 + nameLen + symbolLen + uriLen
+    );
+    const optionCreators = data.readUInt8(14 + nameLen + symbolLen + uriLen);
+    const creators = (() => {
+      if (optionCreators == 0) {
+        return null;
+      }
+
+      const creators: Creator[] = [];
+      const creatorsLen = data.readUInt32LE(15 + nameLen + symbolLen + uriLen);
+      for (let i = 0; i < creatorsLen; ++i) {
+        const idx = 19 + nameLen + symbolLen + uriLen + i * Creator.size;
+        creators.push(
+          Creator.deserialize(data.subarray(idx, idx + Creator.size))
+        );
+      }
+      return creators;
+    })();
+    return new Data(name, symbol, uri, sellerFeeBasisPoints, creators);
   }
 }
 
@@ -230,7 +281,7 @@ export class SplTokenMetadataProgram {
     updateAuthority: PublicKey,
     updateAuthorityIsSigner: boolean = false,
     uri?: string,
-    creators?: Creator[],
+    creators?: Creator[] | null,
     sellerFeeBasisPoints?: number,
     isMutable: boolean = false,
     metadataAccount: PublicKey = deriveSplTokenMetadataKey(mint)
@@ -294,4 +345,79 @@ export function deriveSplTokenMetadataKey(mint: PublicKeyInitData): PublicKey {
     ],
     SplTokenMetadataProgram.programId
   );
+}
+
+export enum Key {
+  Uninitialized,
+  EditionV1,
+  MasterEditionV1,
+  ReservationListV1,
+  MetadataV1,
+  ReservationListV2,
+  MasterEditionV2,
+  EditionMarker,
+}
+
+export class Metadata {
+  // pub struct Metadata {
+  //     pub key: Key,
+  //     pub update_authority: Pubkey,
+  //     pub mint: Pubkey,
+  //     pub data: Data,
+  //     // Immutable, once flipped, all sales of this metadata are considered secondary.
+  //     pub primary_sale_happened: bool,
+  //     // Whether or not the data struct is mutable, default is not
+  //     pub is_mutable: bool,
+  // }
+
+  key: Key;
+  updateAuthority: PublicKey;
+  mint: PublicKey;
+  data: Data;
+  primarySaleHappened: boolean;
+  isMutable: boolean;
+
+  constructor(
+    key: number,
+    updateAuthority: PublicKeyInitData,
+    mint: PublicKeyInitData,
+    data: Data,
+    primarySaleHappened: boolean,
+    isMutable: boolean
+  ) {
+    this.key = key as Key;
+    this.updateAuthority = new PublicKey(updateAuthority);
+    this.mint = new PublicKey(mint);
+    this.data = data;
+    this.primarySaleHappened = primarySaleHappened;
+    this.isMutable = isMutable;
+  }
+
+  static deserialize(data: Buffer): Metadata {
+    const key = data.readUInt8(0);
+    const updateAuthority = data.subarray(1, 33);
+    const mint = data.subarray(33, 65);
+    const meta = Data.deserialize(data.subarray(65));
+    const metaLen = meta.serialize().length;
+    const primarySaleHappened = data.readUInt8(65 + metaLen) > 0;
+    const isMutable = data.readUInt8(66 + metaLen) > 0;
+    return new Metadata(
+      key,
+      updateAuthority,
+      mint,
+      meta,
+      primarySaleHappened,
+      isMutable
+    );
+  }
+}
+
+export async function getMetadata(
+  connection: Connection,
+  mint: PublicKeyInitData,
+  commitment?: Commitment
+): Promise<Metadata> {
+  return connection
+    .getAccountInfo(deriveSplTokenMetadataKey(mint), commitment)
+    .then((info) => Metadata.deserialize(getAccountData(info)));
 }

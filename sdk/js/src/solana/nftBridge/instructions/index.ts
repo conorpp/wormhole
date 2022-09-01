@@ -1,5 +1,5 @@
 export * from "./approve";
-//export * from "./completeNative";
+export * from "./completeNative";
 //export * from "./completeWrapped";
 //export * from "./completeWrappedMeta";
 export * from "./initialize";

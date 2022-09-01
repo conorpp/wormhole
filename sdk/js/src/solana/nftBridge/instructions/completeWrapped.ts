@@ -72,7 +72,7 @@ export function getCompleteTransferWrappedAccounts(
   wormholeProgramId: PublicKeyInitData,
   payer: PublicKeyInitData,
   vaa: SignedVaa | ParsedNftTransferVaa,
-  toAuthority: PublicKeyInitData
+  toAuthority?: PublicKeyInitData
 ): CompleteTransferWrappedAccounts {
   const parsed = isBytes(vaa) ? parseNftTransferVaa(vaa) : vaa;
   const mint = deriveWrappedMintKey(
@@ -97,7 +97,7 @@ export function getCompleteTransferWrappedAccounts(
       parsed.emitterAddress
     ),
     to: new PublicKey(parsed.to),
-    toAuthority: new PublicKey(toAuthority),
+    toAuthority: new PublicKey(toAuthority == undefined ? payer : toAuthority),
     mint,
     wrappedMeta: deriveWrappedMetaKey(nftBridgeProgramId, mint),
     mintAuthority: deriveMintAuthorityKey(nftBridgeProgramId),
