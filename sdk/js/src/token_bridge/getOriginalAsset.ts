@@ -26,6 +26,7 @@ import {
   CosmWasmChainName,
   hexToUint8Array,
   coalesceCosmWasmChainId,
+  tryHexToNativeAssetString,
 } from "../utils";
 import { safeBigIntToNumber } from "../utils/bigint";
 import {
@@ -89,7 +90,7 @@ export async function getOriginalAssetTerra(
 
 /**
  * Returns information about the asset
- * @param wrappedAddress Address of the asset in wormhole wrapped format
+ * @param wrappedAddress Address of the asset in wormhole wrapped format (hex string)
  * @param client WASM api client
  * @returns Information about the asset
  */
@@ -106,11 +107,17 @@ export async function getOriginalAssetInjective(
     };
   }
   try {
-    const queryResult = await client.fetchSmartContractState(
+    const injWrappedAddress = tryHexToNativeAssetString(
       wrappedAddress,
-      JSON.stringify({
-        wrapped_asset_info: {},
-      })
+      CHAIN_ID_INJECTIVE
+    );
+    const queryResult = await client.fetchSmartContractState(
+      injWrappedAddress,
+      Buffer.from(
+        JSON.stringify({
+          wrapped_asset_info: {},
+        })
+      ).toString("base64")
     );
     let result: any = null;
     if (typeof queryResult.data === "string") {
