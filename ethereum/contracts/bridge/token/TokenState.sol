@@ -35,6 +35,7 @@ contract TokenStorage {
         uint256 cachedChainId;
         address cachedThis;
         bytes32 cachedSalt;
+        string cachedName;
 
         // ERC20Permit draft
         mapping(address => Counters.Counter) nonces;

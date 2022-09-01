@@ -59,14 +59,23 @@ contract TokenImplementation is TokenState, Context {
 
     function _initializePermitStateIfNeeded() internal {
         // For old implementations, we need to cache the domain separator.
-        // And if for some reason the salt generation changes with newer
+        //
+        // If for some reason the salt generation changes with newer
         // token implementations, we need to make sure the state reflects
         // the new salt.
-        if (!permitInitialized() || _state.cachedSalt != _salt()) {
+        //
+        // If someone were to change the implementation of name(), we also
+        // need to make sure we recache.
+        if (
+            !permitInitialized() ||
+            _state.cachedSalt != _salt() ||
+            keccak256(abi.encodePacked(_state.cachedName)) != keccak256(abi.encodePacked(name()))
+        ) {
             _state.cachedChainId = block.chainid;
             _state.cachedThis = address(this);
             _state.cachedDomainSeparator = _buildDomainSeparator();
             _state.cachedSalt = _salt();
+            _state.cachedName = name();
             _state.permitInitialized = true;
         }
     }
@@ -193,6 +202,9 @@ contract TokenImplementation is TokenState, Context {
         _state.name = name_;
         _state.symbol = symbol_;
         _state.metaLastUpdatedSequence = sequence_;
+
+        // because the name is updated, we need to recache the domain separator
+        _state.cachedDomainSeparator = _buildDomainSeparator();
     }
 
     modifier onlyOwner() {
@@ -228,7 +240,7 @@ contract TokenImplementation is TokenState, Context {
                 keccak256(
                     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 ),
-                keccak256(abi.encodePacked(_state.name)),
+                keccak256(abi.encodePacked(name())),
                 keccak256(abi.encodePacked(_version())),
                 block.chainid,
                 address(this),
@@ -316,7 +328,7 @@ contract TokenImplementation is TokenState, Context {
     ) {
         return (
             hex"1F", // 11111
-            _state.name,
+            name(),
             _version(),
             _state.cachedChainId,
             _state.cachedThis,
