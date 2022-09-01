@@ -252,33 +252,14 @@ contract TestTokenImplementation is TokenImplementation, Test {
         // initialize TokenImplementation as if it were the old implementation
         setupTestEnvironmentWithOldInitialize();
         require(!permitInitialized(), "permit state should not be initialized");
+        require(_state.cachedSalt == bytes32(0), "cachedSalt is set");
 
         // explicity call private method
         _initializePermitStateIfNeeded();
         require(permitInitialized(), "permit state should be initialized");
+        require(_state.cachedSalt == _salt(), "salt not cached");
 
         // check permit state variables
-        require(
-            _state.hashedTokenChain ==
-                keccak256(abi.encodePacked(_state.chainId)),
-            "_state.hashedTokenChain != expected"
-        );
-        require(
-            _state.hashedNativeContract ==
-                keccak256(abi.encodePacked(_state.nativeContract)),
-            "_state.hashedNativeContract != expected"
-        );
-        require(
-            _state.hashedVersion == keccak256(bytes("1")),
-            "_state.hashedVersion != expected"
-        );
-        require(
-            _state.typeHash ==
-                keccak256(
-                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
-                ),
-            "_state.typeHash != expected"
-        );
         require(
             _state.cachedChainId == block.chainid,
             "_state.cachedChainId != expected"
@@ -287,15 +268,33 @@ contract TestTokenImplementation is TokenImplementation, Test {
             _state.cachedDomainSeparator ==
                 keccak256(
                     abi.encode(
-                        _hashedDomainType(),
-                        _hashedTokenChain(),
-                        _hashedNativeContract(),
-                        _hashedDomainVersion(),
+                        keccak256(
+                            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                        ),
+                        keccak256(abi.encodePacked(_state.name)),
+                        keccak256(abi.encodePacked(_version())),
                         block.chainid,
-                        address(this)
+                        address(this),
+                        keccak256(abi.encodePacked(chainId(), nativeContract()))
                     )
                 ),
             "_state.cachedDomainSeparator != expected"
+        );
+        require(
+            _buildDomainSeparator() ==
+                keccak256(
+                    abi.encode(
+                        keccak256(
+                            "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                        ),
+                        keccak256(abi.encodePacked(_state.name)),
+                        keccak256(abi.encodePacked(_version())),
+                        block.chainid,
+                        address(this),
+                        keccak256(abi.encodePacked(chainId(), nativeContract()))
+                    )
+                ),
+            "_buildDomainSeparator() != expected"
         );
         require(
             _state.cachedThis == address(this),
@@ -314,6 +313,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // initialize TokenImplementation as if it were the old implementation
         setupTestEnvironmentWithOldInitialize();
+        require(!permitInitialized(), "permit state should not be initialized");
+        require(_state.cachedSalt == bytes32(0), "cachedSalt is set");
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
@@ -341,5 +342,59 @@ contract TestTokenImplementation is TokenImplementation, Test {
             allowanceAfter - allowanceBefore == amount,
             "allowance incorrect"
         );
+    }
+
+    function testGetEip712Domain() public {
+        // initialize TokenImplementation
+        setupTestEnvironmentWithInitialize();
+
+        (
+            bytes1 domainFields,
+            string memory domainName,
+            string memory domainVersion,
+            uint256 domainChainId,
+            address domainVerifyingContract,
+            bytes32 domainSalt,
+            uint256[] memory domainExtensions
+        ) = eip712Domain();
+        require(domainFields == hex"1F", "domainFields != expected");
+        require(
+            keccak256(abi.encodePacked(domainName)) ==
+                keccak256(abi.encodePacked(_state.name)),
+            "domainName != expected"
+        );
+        require(
+            keccak256(abi.encodePacked(domainVersion)) ==
+                keccak256(abi.encodePacked("1")),
+            "domainVersion != expected"
+        );
+        require(
+            keccak256(abi.encodePacked(domainVersion)) ==
+                keccak256(abi.encodePacked(_version())),
+            "domainVersion != _version()"
+        );
+        require(domainChainId == block.chainid, "domainFields != expected");
+        require(
+            domainChainId == _state.cachedChainId,
+            "domainFields != _state.cachedChainId"
+        );
+        require(
+            domainVerifyingContract == address(this),
+            "domainVerifyingContract != expected"
+        );
+        require(
+            domainVerifyingContract == _state.cachedThis,
+            "domainVerifyingContract != _state.cachedThis"
+        );
+        require(
+            domainSalt ==
+                keccak256(abi.encodePacked(chainId(), nativeContract())),
+            "domainFields != expected"
+        );
+        require(
+            domainSalt == _state.cachedSalt,
+            "domainFields != _state.cachedSalt"
+        );
+        require(domainExtensions.length == 0, "domainExtensions.length != 0");
     }
 }

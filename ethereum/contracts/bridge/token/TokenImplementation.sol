@@ -58,16 +58,15 @@ contract TokenImplementation is TokenState, Context {
     }
 
     function _initializePermitStateIfNeeded() internal {
-        if (!permitInitialized()) {
-            _state.hashedTokenChain = _hashedTokenChain();
-            _state.hashedNativeContract = _hashedNativeContract();
-            _state.hashedVersion = _hashedDomainVersion();
-            _state.typeHash = _hashedDomainType();
+        // For old implementations, we need to cache the domain separator.
+        // And if for some reason the salt generation changes with newer
+        // token implementations, we need to make sure the state reflects
+        // the new salt.
+        if (!permitInitialized() || _state.cachedSalt != _salt()) {
             _state.cachedChainId = block.chainid;
-            _state.cachedDomainSeparator = _buildNativeDomainSeparator(
-                _state.typeHash, _state.hashedTokenChain, _state.hashedNativeContract, _state.hashedVersion
-            );
             _state.cachedThis = address(this);
+            _state.cachedDomainSeparator = _buildDomainSeparator();
+            _state.cachedSalt = _salt();
             _state.permitInitialized = true;
         }
     }
@@ -219,22 +218,23 @@ contract TokenImplementation is TokenState, Context {
         if (address(this) == _state.cachedThis && block.chainid == _state.cachedChainId) {
             return _state.cachedDomainSeparator;
         } else {
-            return _buildNativeDomainSeparator(
-                _hashedDomainType(),
-                _hashedTokenChain(),
-                _hashedNativeContract(),
-                _hashedDomainVersion()
-            );
+            return _buildDomainSeparator();
         }
     }
 
-    function _buildNativeDomainSeparator(
-        bytes32 typeHash,
-        bytes32 tokenChainHash,
-        bytes32 nativeContractHash,
-        bytes32 versionHash
-    ) internal view returns (bytes32) {
-        return keccak256(abi.encode(typeHash, tokenChainHash, nativeContractHash, versionHash, block.chainid, address(this)));
+    function _buildDomainSeparator() internal view returns (bytes32) {
+        return keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                ),
+                keccak256(abi.encodePacked(_state.name)),
+                keccak256(abi.encodePacked(_version())),
+                block.chainid,
+                address(this),
+                _salt()
+            )
+        );
     }
 
     /**
@@ -276,7 +276,16 @@ contract TokenImplementation is TokenState, Context {
         require(block.timestamp <= deadline_, "ERC20Permit: expired deadline");
 
         bytes32 structHash = keccak256(
-            abi.encode(_hashedPermitType(), owner_, spender_, value_, _useNonce(owner_), deadline_)
+            abi.encode(
+                keccak256(
+                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                ),
+                owner_,
+                spender_,
+                value_,
+                _useNonce(owner_),
+                deadline_
+            )
         );
 
         bytes32 message = _hashTypedDataV4(structHash);
@@ -296,23 +305,31 @@ contract TokenImplementation is TokenState, Context {
         return _domainSeparatorV4();
     }
 
-    function _hashedTokenChain() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(_state.chainId));
+    function eip712Domain() public view returns (
+        bytes1 domainFields,
+        string memory domainName,
+        string memory domainVersion,
+        uint256 domainChainId,
+        address domainVerifyingContract,
+        bytes32 domainSalt,
+        uint256[] memory domainExtensions
+    ) {
+        return (
+            hex"1F", // 11111
+            _state.name,
+            _version(),
+            _state.cachedChainId,
+            _state.cachedThis,
+            _salt(),
+            new uint256[](0)
+        );
     }
 
-    function _hashedNativeContract() internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(_state.nativeContract));
+    function _version() internal pure returns (string memory) {
+        return "1";
     }
 
-    function _hashedDomainVersion() internal pure returns (bytes32) {
-        return keccak256(bytes("1"));
-    }
-
-    function _hashedDomainType() internal pure returns (bytes32) {
-        return keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
-    }
-
-    function _hashedPermitType() internal pure returns (bytes32) {
-        return keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    function _salt() internal view returns (bytes32) {
+        return keccak256(abi.encodePacked(_state.chainId, _state.nativeContract));
     }
 }
