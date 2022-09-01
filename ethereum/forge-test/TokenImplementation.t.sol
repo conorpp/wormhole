@@ -477,6 +477,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // set allowance with permit
         permit(allower, spender, amount, deadline, v, r, s);
+
+        // verify salt is correct
         require(_state.cachedSalt == _salt(), "_state.cachedSalt != salt()");
 
         uint256 allowanceAfter = allowance(allower, spender);
@@ -499,7 +501,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         // initialize TokenImplementation
         setupTestEnvironmentWithInitialize();
 
-        // hijack salt
+        // hijack name
         _state.cachedName = "definitely not right";
         require(
             keccak256(abi.encodePacked(_state.cachedName)) !=
@@ -526,6 +528,8 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // set allowance with permit
         permit(allower, spender, amount, deadline, v, r, s);
+
+        // verify name is correct
         require(
             keccak256(abi.encodePacked(_state.cachedName)) ==
                 keccak256(abi.encodePacked(name())),
