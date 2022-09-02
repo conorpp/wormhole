@@ -122,9 +122,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
             deadline
         );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(signature.allower, spender);
-
         // set allowance with permit
         permit(
             signature.allower,
@@ -137,7 +134,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
 
         require(
-            allowance(signature.allower, spender) - allowanceBefore == amount,
+            allowance(signature.allower, spender) == amount,
             "allowance incorrect"
         );
     }
@@ -343,9 +340,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
             deadline
         );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(signature.allower, spender);
-
         // set allowance with permit
         permit(
             signature.allower,
@@ -358,7 +352,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
 
         require(
-            allowance(signature.allower, spender) - allowanceBefore == amount,
+            allowance(signature.allower, spender) == amount,
             "allowance incorrect"
         );
     }
@@ -470,9 +464,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
             )
         );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(signature.allower, spender);
-
         // sign and set allowance with permit
         (signature.v, signature.r, signature.s) = vm.sign(
             sk,
@@ -489,7 +480,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
 
         require(
-            allowance(signature.allower, spender) - allowanceBefore == amount,
+            allowance(signature.allower, spender) == amount,
             "allowance incorrect"
         );
     }
@@ -521,9 +512,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
                 deadline
             );
 
-            // get allowance before calling permit
-            uint256 allowanceBefore = allowance(signature.allower, spender);
-
             // set allowance with permit
             permit(
                 signature.allower,
@@ -536,8 +524,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
             );
 
             require(
-                allowance(signature.allower, spender) - allowanceBefore ==
-                    amount,
+                allowance(signature.allower, spender) == amount,
                 "allowance incorrect"
             );
 
@@ -580,9 +567,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
                 deadline
             );
 
-            // get allowance before calling permit
-            uint256 allowanceBefore = allowance(signature.allower, spender);
-
             // set allowance with permit
             permit(
                 signature.allower,
@@ -595,8 +579,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
             );
 
             require(
-                allowance(signature.allower, spender) - allowanceBefore ==
-                    amount,
+                allowance(signature.allower, spender) == amount,
                 "allowance incorrect"
             );
         }
@@ -627,9 +610,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
             deadline
         );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(signature.allower, spender);
-
         // set allowance with permit
         permit(
             signature.allower,
@@ -645,7 +625,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         require(_state.cachedSalt == _salt(), "_state.cachedSalt != salt()");
         // then allowance
         require(
-            allowance(signature.allower, spender) - allowanceBefore == amount,
+            allowance(signature.allower, spender) == amount,
             "allowance incorrect"
         );
     }
@@ -679,9 +659,6 @@ contract TestTokenImplementation is TokenImplementation, Test {
             deadline
         );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(signature.allower, spender);
-
         // set allowance with permit
         permit(
             signature.allower,
@@ -701,7 +678,7 @@ contract TestTokenImplementation is TokenImplementation, Test {
         );
         // then allowance
         require(
-            allowance(signature.allower, spender) - allowanceBefore == amount,
+            allowance(signature.allower, spender) == amount,
             "allowance incorrect"
         );
     }
