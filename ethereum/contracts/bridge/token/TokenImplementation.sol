@@ -235,16 +235,24 @@ contract TokenImplementation is TokenState, Context {
     }
 
     function _buildDomainSeparator() internal view returns (bytes32) {
+        (
+            ,
+            string memory domainName,
+            string memory domainVersion,
+            uint256 domainChainId,
+            address domainVerifyingContract,
+            bytes32 domainSalt,
+        ) = eip712Domain();
         return keccak256(
             abi.encode(
                 keccak256(
                     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
                 ),
-                keccak256(abi.encodePacked(name())),
-                keccak256(abi.encodePacked(_version())),
-                block.chainid,
-                address(this),
-                _salt()
+                keccak256(abi.encodePacked(domainName)),
+                keccak256(abi.encodePacked(domainVersion)),
+                domainChainId,
+                domainVerifyingContract,
+                domainSalt
             )
         );
     }
@@ -330,8 +338,8 @@ contract TokenImplementation is TokenState, Context {
             hex"1F", // 11111
             name(),
             _version(),
-            _state.cachedChainId,
-            _state.cachedThis,
+            block.chainid,
+            address(this),
             _salt(),
             new uint256[](0)
         );
