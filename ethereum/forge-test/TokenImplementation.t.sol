@@ -22,6 +22,13 @@ contract TestTokenImplementation is TokenImplementation, Test {
         bytes32 nativeContract;
     }
 
+    struct SignatureSetup {
+        address allower;
+        bytes32 r;
+        bytes32 s;
+        uint8 v;
+    }
+
     function setupTestEnvironmentWithInitialize() public {
         InitiateParameters memory init;
         init.name = "Valuable Token";
@@ -71,18 +78,10 @@ contract TestTokenImplementation is TokenImplementation, Test {
         address spender,
         uint256 amount,
         uint256 deadline
-    )
-        public
-        returns (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        )
-    {
+    ) public returns (SignatureSetup memory output) {
         // prepare signer allowing for tokens to be spent
         uint256 sk = uint256(walletPrivateKey);
-        allower = vm.addr(sk);
+        output.allower = vm.addr(sk);
 
         bytes32 PERMIT_TYPEHASH = keccak256(
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
@@ -90,16 +89,16 @@ contract TestTokenImplementation is TokenImplementation, Test {
         bytes32 structHash = keccak256(
             abi.encode(
                 PERMIT_TYPEHASH,
-                allower,
+                output.allower,
                 spender,
                 amount,
-                nonces(allower),
+                nonces(output.allower),
                 deadline
             )
         );
 
         bytes32 message = ECDSA.toTypedDataHash(DOMAIN_SEPARATOR(), structHash);
-        (v, r, s) = vm.sign(sk, message);
+        (output.v, output.r, output.s) = vm.sign(sk, message);
     }
 
     function testPermit(
@@ -116,27 +115,29 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                amount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
 
         // get allowance before calling permit
-        uint256 allowanceBefore = allowance(allower, spender);
+        uint256 allowanceBefore = allowance(signature.allower, spender);
 
         // set allowance with permit
-        permit(allower, spender, amount, deadline, v, r, s);
-        uint256 allowanceAfter = allowance(allower, spender);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
 
         require(
-            allowanceAfter - allowanceBefore == amount,
+            allowance(signature.allower, spender) - allowanceBefore == amount,
             "allowance incorrect"
         );
     }
@@ -155,25 +156,36 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                amount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
 
         // set allowance with permit
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
 
         // try again... you shall not pass
         // NOTE: using "testFail" instead of "test" because
         // vm.expectRevert("ERC20Permit: invalid signature") does not work
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
     }
 
     function testFailPermitWithBadSignature(
@@ -196,22 +208,25 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                wrongAmount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            wrongAmount,
+            deadline
+        );
 
         // you shall not pass!
         // NOTE: using "testFail" instead of "test" because
         // vm.expectRevert("ERC20Permit: invalid signature") does not work
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
     }
 
     function testPermitWithSignatureUsedAfterDeadline(
@@ -228,24 +243,27 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                amount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
 
         // waited too long
         vm.warp(deadline + 1);
 
         // and fail
         vm.expectRevert("ERC20Permit: expired deadline");
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
     }
 
     function testInitializePermitState() public {
@@ -318,116 +336,227 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
+
+        // get allowance before calling permit
+        uint256 allowanceBefore = allowance(signature.allower, spender);
+
+        // set allowance with permit
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
+
+        require(
+            allowance(signature.allower, spender) - allowanceBefore == amount,
+            "allowance incorrect"
+        );
+    }
+
+    // used to prevent stack too deep in test
+    struct Eip712DomainOutput {
+        bytes1 fields;
+        string name;
+        string version;
+        uint256 chainId;
+        address verifyingContract;
+        bytes32 salt;
+        uint256[] extensions;
+    }
+
+    function testPermitUsingEip712DomainValues(
+        bytes32 walletPrivateKey,
+        uint256 amount,
+        address spender
+    ) public {
+        vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
+        vm.assume(spender != address(0));
+
+        // initialize TokenImplementation
+        setupTestEnvironmentWithInitialize();
+
+        Eip712DomainOutput memory domain;
         (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
+            domain.fields,
+            domain.name,
+            domain.version,
+            domain.chainId,
+            domain.verifyingContract,
+            domain.salt,
+            domain.extensions
+        ) = eip712Domain();
+        require(domain.fields == hex"1F", "domainFields != expected");
+        require(
+            keccak256(abi.encodePacked(domain.name)) ==
+                keccak256(abi.encodePacked(name())),
+            "domainName != expected"
+        );
+        require(
+            keccak256(abi.encodePacked(domain.version)) ==
+                keccak256(abi.encodePacked("1")),
+            "domainVersion != expected"
+        );
+        require(
+            keccak256(abi.encodePacked(domain.version)) ==
+                keccak256(abi.encodePacked(_version())),
+            "domainVersion != _version()"
+        );
+        require(domain.chainId == block.chainid, "domainFields != expected");
+        require(
+            domain.chainId == _state.cachedChainId,
+            "domainFields != _state.cachedChainId"
+        );
+        require(
+            domain.verifyingContract == address(this),
+            "domainVerifyingContract != expected"
+        );
+        require(
+            domain.verifyingContract == _state.cachedThis,
+            "domainVerifyingContract != _state.cachedThis"
+        );
+        require(
+            domain.salt ==
+                keccak256(abi.encodePacked(chainId(), nativeContract())),
+            "domainFields != expected"
+        );
+        require(
+            domain.salt == _state.cachedSalt,
+            "domainFields != _state.cachedSalt"
+        );
+        require(domain.extensions.length == 0, "domainExtensions.length != 0");
+
+        // prepare signer allowing for tokens to be spent
+        SignatureSetup memory signature;
+        uint256 sk = uint256(walletPrivateKey);
+        signature.allower = vm.addr(sk);
+
+        uint256 deadline = 10;
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256(
+                    "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+                ),
+                signature.allower,
+                spender,
+                amount,
+                nonces(signature.allower),
+                deadline
+            )
+        );
+
+        // build domain separator by hand using eip712Domain() output
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256(
+                    "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)"
+                ),
+                keccak256(abi.encodePacked(domain.name)),
+                keccak256(abi.encodePacked(domain.version)),
+                domain.chainId,
+                domain.verifyingContract,
+                domain.salt
+            )
+        );
+
+        // get allowance before calling permit
+        uint256 allowanceBefore = allowance(signature.allower, spender);
+
+        // sign and set allowance with permit
+        (signature.v, signature.r, signature.s) = vm.sign(
+            sk,
+            ECDSA.toTypedDataHash(domainSeparator, structHash)
+        );
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
+
+        require(
+            allowance(signature.allower, spender) - allowanceBefore == amount,
+            "allowance incorrect"
+        );
+    }
+
+    function testPermitAfterUpdateDetails(
+        bytes32 walletPrivateKey,
+        uint256 amount,
+        address spender,
+        string calldata newName
+    ) public {
+        vm.assume(walletPrivateKey != bytes32(0));
+        vm.assume(uint256(walletPrivateKey) < SECP256K1_CURVE_ORDER);
+        vm.assume(spender != address(0));
+        vm.assume(bytes(newName).length <= 32);
+
+        // initialize TokenImplementation
+        setupTestEnvironmentWithInitialize();
+
+        string memory oldName = name();
+        bytes32 oldDomainSeparator = _state.cachedDomainSeparator;
+
+        // permit before updateDetails
+        {
+            uint256 deadline = 10;
+            SignatureSetup memory signature = simulatePermitSignature(
                 walletPrivateKey,
                 spender,
                 amount,
                 deadline
             );
 
-        // get allowance before calling permit
-        uint256 allowanceBefore = allowance(allower, spender);
+            // get allowance before calling permit
+            uint256 allowanceBefore = allowance(signature.allower, spender);
 
-        // set allowance with permit
-        permit(allower, spender, amount, deadline, v, r, s);
+            // set allowance with permit
+            permit(
+                signature.allower,
+                spender,
+                amount,
+                deadline,
+                signature.v,
+                signature.r,
+                signature.s
+            );
 
-        uint256 allowanceAfter = allowance(allower, spender);
+            require(
+                allowance(signature.allower, spender) - allowanceBefore ==
+                    amount,
+                "allowance incorrect"
+            );
 
-        require(
-            allowanceAfter - allowanceBefore == amount,
-            "allowance incorrect"
-        );
-    }
+            // revoke allowance to prep for next test
+            _approve(signature.allower, spender, 0);
+        }
 
-    function testGetEip712Domain() public {
-        // initialize TokenImplementation
-        setupTestEnvironmentWithInitialize();
-
-        (
-            bytes1 domainFields,
-            string memory domainName,
-            string memory domainVersion,
-            uint256 domainChainId,
-            address domainVerifyingContract,
-            bytes32 domainSalt,
-            uint256[] memory domainExtensions
-        ) = eip712Domain();
-        require(domainFields == hex"1F", "domainFields != expected");
-        require(
-            keccak256(abi.encodePacked(domainName)) ==
-                keccak256(abi.encodePacked(name())),
-            "domainName != expected"
+        // asset metadata updated here
+        updateDetails(
+            newName,
+            "NEW", // new symbol
+            _state.metaLastUpdatedSequence + 1 // new sequence
         );
-        require(
-            keccak256(abi.encodePacked(domainVersion)) ==
-                keccak256(abi.encodePacked("1")),
-            "domainVersion != expected"
-        );
-        require(
-            keccak256(abi.encodePacked(domainVersion)) ==
-                keccak256(abi.encodePacked(_version())),
-            "domainVersion != _version()"
-        );
-        require(domainChainId == block.chainid, "domainFields != expected");
-        require(
-            domainChainId == _state.cachedChainId,
-            "domainFields != _state.cachedChainId"
-        );
-        require(
-            domainVerifyingContract == address(this),
-            "domainVerifyingContract != expected"
-        );
-        require(
-            domainVerifyingContract == _state.cachedThis,
-            "domainVerifyingContract != _state.cachedThis"
-        );
-        require(
-            domainSalt ==
-                keccak256(abi.encodePacked(chainId(), nativeContract())),
-            "domainFields != expected"
-        );
-        require(
-            domainSalt == _state.cachedSalt,
-            "domainFields != _state.cachedSalt"
-        );
-        require(domainExtensions.length == 0, "domainExtensions.length != 0");
-    }
-
-    function testUpdateDetails(
-        string calldata newName,
-        string calldata newSymbol,
-        uint64 newSequence
-    ) public {
-        vm.assume(newSequence > 1);
-        vm.assume(bytes(newName).length <= 32);
-        vm.assume(bytes(newSymbol).length <= 32);
-
-        // initialize TokenImplementation
-        setupTestEnvironmentWithInitialize();
-
-        string memory oldName = name();
-        string memory oldSymbol = symbol();
-        uint64 oldSequence = _state.metaLastUpdatedSequence;
-        bytes32 oldDomainSeparator = _state.cachedDomainSeparator;
-
-        updateDetails(newName, newSymbol, newSequence);
 
         require(
             keccak256(abi.encodePacked(newName)) !=
                 keccak256(abi.encodePacked(oldName)),
             "newName == oldName"
         );
-        require(
-            keccak256(abi.encodePacked(newSymbol)) !=
-                keccak256(abi.encodePacked(oldSymbol)),
-            "newSymbol == oldSymbol"
-        );
-        require(newSequence != oldSequence, "newSequence == oldSequence");
         require(
             _buildDomainSeparator() != oldDomainSeparator,
             "_buildDomainSeparator() == oldDomainSeparator"
@@ -440,6 +569,37 @@ contract TestTokenImplementation is TokenImplementation, Test {
             _state.cachedDomainSeparator == _buildDomainSeparator(),
             "_state.cachedDomainSeparator == _buildDomainSeparator()"
         );
+
+        // permit after updateDetails
+        {
+            uint256 deadline = 10;
+            SignatureSetup memory signature = simulatePermitSignature(
+                walletPrivateKey,
+                spender,
+                amount,
+                deadline
+            );
+
+            // get allowance before calling permit
+            uint256 allowanceBefore = allowance(signature.allower, spender);
+
+            // set allowance with permit
+            permit(
+                signature.allower,
+                spender,
+                amount,
+                deadline,
+                signature.v,
+                signature.r,
+                signature.s
+            );
+
+            require(
+                allowance(signature.allower, spender) - allowanceBefore ==
+                    amount,
+                "allowance incorrect"
+            );
+        }
     }
 
     function testPermitForOldSalt(
@@ -460,31 +620,32 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                amount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
 
         // get allowance before calling permit
-        uint256 allowanceBefore = allowance(allower, spender);
+        uint256 allowanceBefore = allowance(signature.allower, spender);
 
         // set allowance with permit
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
 
         // verify salt is correct
         require(_state.cachedSalt == _salt(), "_state.cachedSalt != salt()");
-
-        uint256 allowanceAfter = allowance(allower, spender);
-
+        // then allowance
         require(
-            allowanceAfter - allowanceBefore == amount,
+            allowance(signature.allower, spender) - allowanceBefore == amount,
             "allowance incorrect"
         );
     }
@@ -511,23 +672,26 @@ contract TestTokenImplementation is TokenImplementation, Test {
 
         // prepare signer allowing for tokens to be spent
         uint256 deadline = 10;
-        (
-            address allower,
-            uint8 v,
-            bytes32 r,
-            bytes32 s
-        ) = simulatePermitSignature(
-                walletPrivateKey,
-                spender,
-                amount,
-                deadline
-            );
+        SignatureSetup memory signature = simulatePermitSignature(
+            walletPrivateKey,
+            spender,
+            amount,
+            deadline
+        );
 
         // get allowance before calling permit
-        uint256 allowanceBefore = allowance(allower, spender);
+        uint256 allowanceBefore = allowance(signature.allower, spender);
 
         // set allowance with permit
-        permit(allower, spender, amount, deadline, v, r, s);
+        permit(
+            signature.allower,
+            spender,
+            amount,
+            deadline,
+            signature.v,
+            signature.r,
+            signature.s
+        );
 
         // verify name is correct
         require(
@@ -535,11 +699,9 @@ contract TestTokenImplementation is TokenImplementation, Test {
                 keccak256(abi.encodePacked(name())),
             "_state.cachedName != name()"
         );
-
-        uint256 allowanceAfter = allowance(allower, spender);
-
+        // then allowance
         require(
-            allowanceAfter - allowanceBefore == amount,
+            allowance(signature.allower, spender) - allowanceBefore == amount,
             "allowance incorrect"
         );
     }
